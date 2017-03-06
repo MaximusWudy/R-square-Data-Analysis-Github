@@ -1,0 +1,104 @@
+---
+title: "R-square Test"
+author: "Deng, Ancheng 13335031 Ecology,School of Life Science"
+date: "December 22, 2015"
+output: pdf_document
+---
+
+First I check on the description of the dataset and find the name of each column, then I rename the colname. Then I have a glimpse of the data.[using colnames and summary]
+
+```{r}
+Abalone <- read.table("~/Documents/R Programming/Rsquare-Test/Abalone.txt", quote="\"", comment.char="", stringsAsFactors=FALSE)
+colnames(Abalone)<-c('Sex','Length','Diameter','Height','Whole weight','Shucked weight','Viscera weight','Shell weight','Rings')
+summary.data.frame(Abalone)
+```
+
+And I find those NA values to be irretating, with max to 48 and min to 35, and because of the large number of the observations (more than 4000), I use na.omit to deal with the dataset and create a new one with all usable values. [na.omit]
+
+```{r}
+data_naout<-na.omit(Abalone)
+class(data_naout)
+attach(data_naout)
+```
+
+At the beginning of the data visualization process we should first check on the feature of data distribution and to see if it matches any known distributions. [hist]
+
+```{r}
+hist(Length,labels=T)
+```
+
+the distribution is a little left skewed
+
+then we should see how it matches with the normal distribution. [qqnorm,qqline]
+
+```{r}
+qqnorm(Length,main='QQplot for Length of the Abalone')
+qqline(Length,col=2)
+```
+
+And it seems like the data has a pretty light tail on both sides
+
+Now it is time for the other properties. In the first attempt of the plotting, there is a large span with little value, one or several outliers are considered and the extra boxplot will be given in the addtional material. Right now we just use the range from 0 to 1.5 empirically.(Since the property 'rings' has a different range of measure compared to the others, it is drawn independently) [reshape2, ggplot2]
+
+```{r}
+data_shaped<-data_naout[,-1]
+library(reshape2)
+library(ggplot2)
+names(data_shaped)<-tolower(names(data_shaped))
+K<-melt(data_shaped)
+names(K)<-c('property','measure')
+p<- ggplot(data=subset(K,property!='rings'),aes(measure))
+p + geom_histogram(position = 'identity',
+    alpha=0.5,
+    aes(y = ..density..,
+    fill = factor(property))) +
+    stat_density(geom = 'line',
+    position = 'identity',
+    aes(colour = factor(property)))+facet_grid(property~.)+ 
+    scale_x_continuous(limits=c(0,1.5))+ 
+    labs(title = "Distribution of Abalone Data (Rings excluded)",x = "Measure",y = "Density")
+```
+
+Then we should see the 'rings' data distribution.
+
+```{r}
+p1<- ggplot(data=subset(K,property='rings'),aes(measure))
+p1 + geom_histogram(position = 'identity',
+                   alpha=0.5,
+                   aes(y = ..density..,fill='rings')) + scale_x_continuous(limits=c(0,15))
+```
+
+In the data-visulization process I find that the plot are quite small, which means that there might be some outliers that extend the data range of the measure. So in the next step we should find out those outliers and try to avoid them in the following analysis. [ggplot:qplot]
+
+```{r}
+qplot(property,measure,data=subset(K,property!='rings'),geom='boxplot',alpha=I(1/2)) + labs(title='Boxplot for Abalone data (rings excluded)')
+#as for the 'rings' data
+x=subset(K,property='rings')
+boxplot(x[,2],main='Boxplot for Rings data', xlab='rings',ylab='measure')
+```
+
+And we can see that almost every property has one or several outliers, some of which are terrible. And in the following experiment we should first eliminate those outliers or preserve them for further analysis, because sometimes it is the outliers that make a difference. So for the moment we just keep it.
+
+Next we should see if there are any correlation relationships between the Length,the Height, the Diameter and the Whole weight of the Abalone. So we plot the scattered point in combination of them and try to see the pattern. [Lattice]
+
+```{r}
+library(lattice)
+xyplot(Length + Diameter ~ Diameter + Height + `Whole weight` | Sex,
+       data = data_naout, scales = "free", layout = c(2, 2),
+       auto.key = list(x = .6, y = .7, corner = c(0, 0)))
+```
+
+The result is quite amazing! With the red line as the reference line, all the other line has a strong and clear correlation pattern, no matter the gender, especially teh pink and orange line, which is the correlation between length and height and the correlation between diameter and height. It is resonable that the longer the Abalone the higher and bigger is it, the result does not disobey the empirical rules.
+
+In addition, we should focus on the methematical result of the correlation. Since the data has continuous distribution, we use pearson correlation method to calculation the correlation. [agricolae]
+
+```{r,echo=F}
+library(agricolae)
+correlation(data_naout[,-1])
+```
+
+Ok, from now we should see that the correlation is very obvious that this 6 types of data have the correlation relationship of statistical significance. And in the future datamining we should focus on interpreting the meaning of these correlation trying to find PRIMARY fator of all the properties. In the future, PCA, SVM and other machine learning methods can be used to give the approximate missing information about one abalone given the other properties.
+
+
+
+THE END
